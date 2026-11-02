@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0e6258">
+    <title>Besse Water | Community Water Management</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <!-- Login Screen  -->
+    <main class="auth-screen" id="auth-screen">
+      <form class="auth-card" id="sign-in-form">
+        <img class="brand-logo auth-logo" src="img/logo.png" alt="Besse Village Development Committee">
+        <p class="eyebrow">BESSE VILLAGE DEVELOPMENT COMMITTEE</p>
+        <h1>Sign in to Besse Water</h1>
+        <p class="subheading">Use an account invited by your workspace administrator.</p>
+        <label>Email address<input name="email" type="email" autocomplete="username" required></label>
+        <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+        <button class="button button-primary button-full" type="submit">Sign in</button>
+        <p class="auth-error" id="auth-error" role="alert"></p>
+      </form>
+    </main>
+    <div class="app-shell" id="app-shell" hidden>
+      <aside class="sidebar">
+        <a class="brand" href="#" aria-label="Besse Water home">
+          <img class="brand-logo sidebar-logo" src="img/logo.png" alt="">
+          <span><strong>Besse Water</strong><small>Community management</small></span>
+        </a>
+        <div class="nav-label">WORKSPACE</div>
+        <nav class="main-nav" aria-label="Main navigation">
+          <button class="nav-link active" type="button" data-view="dashboard"><span aria-hidden="true">⌂</span> Overview</button>
+          <button class="nav-link" type="button" data-view="applications"><span aria-hidden="true">▤</span> Applications</button>
+          <button class="nav-link" type="button" data-view="customers"><span aria-hidden="true">♙</span> Customers</button>
+          <button class="nav-link" type="button" data-view="billing"><span aria-hidden="true">₵</span> Metering &amp; Billing</button>
+          <button class="nav-link" type="button" data-view="payments"><span aria-hidden="true">₵</span> Payments</button>
+          <button class="nav-link" type="button" data-view="settings"><span aria-hidden="true">⚙</span> Settings</button>
+        </nav>
+        <div class="sidebar-footer">
+          <span class="online-dot" aria-hidden="true"></span>
+          <span><strong id="workspace-status">Connecting…</strong><small id="workspace-detail">Checking cloud storage</small></span>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div class="mobile-brand"><img class="brand-logo" src="img/logo.png" alt=""><strong>Besse Water</strong></div>
+          <div class="topbar-note"><span class="online-dot" aria-hidden="true"></span> Community water service</div>
+          <button class="button button-secondary" id="sign-out-button" type="button" hidden>Sign out</button>
+          <button class="button button-primary" type="button" data-open-application>＋ <span>New application</span></button>
+        </header>
+
+        <section class="view active" id="view-dashboard">
+          <div class="page-heading">
+            <div><p class="eyebrow">BESSE VILLAGE DEVELOPMENT COMMITTEE</p><h1>Overview</h1><p class="subheading">A clear view of registrations, water use, and account balances.</p></div>
+            <p class="today" id="today-label"></p>
+          </div>
+          <div class="stat-grid">
+            <article class="stat-card"><span class="stat-icon teal" aria-hidden="true">♙</span><div><p>Active meter connections</p><strong id="stat-customers">0</strong></div><span class="stat-foot">Approved household meters</span></article>
+            <article class="stat-card"><span class="stat-icon amber" aria-hidden="true">▤</span><div><p>Pending applications</p><strong id="stat-pending">0</strong></div><span class="stat-foot">Awaiting VDC review</span></article>
+            <article class="stat-card"><span class="stat-icon blue" aria-hidden="true">◉</span><div><p>Readings this month</p><strong id="stat-readings">0</strong></div><span class="stat-foot">Meter readings recorded</span></article>
+            <article class="stat-card"><span class="stat-icon rose" aria-hidden="true">₵</span><div><p>Outstanding balance</p><strong id="stat-balance">GMD 0.00</strong></div><span class="stat-foot">Across all customer accounts</span></article>
+          </div>
+
+          <div class="dashboard-grid">
+            <section class="panel">
+              <div class="panel-heading"><div><h2>Recent applications</h2><p>Latest connection requests</p></div><button class="text-button" type="button" data-go-view="applications">View all <span aria-hidden="true">→</span></button></div>
+              <div class="table-wrap"><table><thead><tr><th>Applicant</th><th>Application</th><th>Property</th><th>Status</th></tr></thead><tbody id="recent-applications"></tbody></table></div>
+              <p class="empty-state" id="empty-applications">New applications will appear here.</p>
+            </section>
+            <section class="panel">
+              <div class="panel-heading"><div><h2>Recent activity</h2><p>Latest meter readings and payments</p></div><button class="text-button" type="button" data-go-view="billing">Open billing <span aria-hidden="true">→</span></button></div>
+              <div class="activity-list" id="recent-activity"></div>
+              <p class="empty-state" id="empty-activity">Billing activity will appear here.</p>
+            </section>
+          </div>
+          <div class="notice"><span aria-hidden="true">ⓘ</span><p><strong>Workspace records are stored in the connected Supabase project.</strong> Only signed-in, authorized workspace members can access the records. Configure and verify database backups before entering real customer records.</p></div>
+        </section>
+
+        <section class="view" id="view-applications">
+          <div class="page-heading"><div><p class="eyebrow">CONNECTION MANAGEMENT</p><h1>Applications</h1><p class="subheading">Review water connection requests and record VDC decisions.</p></div><button class="button button-primary" type="button" data-open-application>＋ New application</button></div>
+          <section class="panel">
+            <div class="panel-heading panel-heading-wrap"><div><h2>All applications</h2><p id="application-count">0 records</p></div><label class="search-field"><span aria-hidden="true">⌕</span><input id="application-search" type="search" placeholder="Search applicants..." aria-label="Search applications"></label></div>
+            <div class="table-wrap"><table><thead><tr><th>Applicant</th><th>Application no.</th><th>Submitted</th><th>Connection</th><th>Site / plot</th><th>Status</th><th></th></tr></thead><tbody id="applications-table"></tbody></table></div>
+            <p class="empty-state" id="applications-empty">No applications yet. Start by registering a water connection.</p>
+          </section>
+        </section>
+
+        <section class="view" id="view-customers">
+          <div class="page-heading"><div><p class="eyebrow">CUSTOMER DIRECTORY</p><h1>Customers</h1><p class="subheading">Each approved meter connection has its own account; one household may have multiple meters.</p></div><button class="button button-primary" type="button" data-open-application>＋ New application</button></div>
+          <section class="panel">
+            <div class="panel-heading panel-heading-wrap"><div><h2>Customer accounts</h2><p id="customer-count">0 approved customers</p></div><label class="search-field"><span aria-hidden="true">⌕</span><input id="customer-search" type="search" placeholder="Search customers..." aria-label="Search customers"></label></div>
+            <div class="table-wrap"><table><thead><tr><th>Customer</th><th>Account no.</th><th>Phone</th><th>Location</th><th>Meter no.</th><th>Balance</th></tr></thead><tbody id="customers-table"></tbody></table></div>
+            <p class="empty-state" id="customers-empty">Approved customer accounts will appear here.</p>
+          </section>
+        </section>
+
+        <section class="view" id="view-billing">
+          <div class="page-heading"><div><p class="eyebrow">WATER ACCOUNTING</p><h1>Metering &amp; Billing</h1><p class="subheading">Record meter readings to generate invoices.</p></div></div>
+          <div class="billing-actions">
+            <form class="panel action-panel" id="reading-form">
+              <div class="panel-heading"><div><h2>Record a meter reading</h2><p>Usage is calculated from the previous reading and an invoice is generated.</p></div><span class="form-icon" aria-hidden="true">◉</span></div>
+              <label>Customer<select name="customerId" class="customer-select" required><option value="">Choose a customer</option></select></label>
+              <div class="form-row"><label>Reading date<input name="date" type="date" required></label><label>Current meter reading<input name="reading" type="number" min="0" step="any" placeholder="e.g. 125.5" required></label></div>
+              <div class="reading-preview" id="reading-preview">Choose a customer to see the last reading and tariff.</div>
+              <button class="button button-primary button-full" type="submit">Save reading &amp; generate invoice</button>
+            </form>
+            <section class="panel bulk-reading-panel">
+              <div class="panel-heading"><div><h2>Bulk meter readings</h2><p>Download an Excel template, fill in meter values offline, then upload it.</p></div></div>
+              <div class="bulk-reading-actions">
+                <button class="button button-secondary" id="download-reading-template" type="button">Download Meter Reading Template</button>
+                <label>Upload Completed Meter Reading<input id="bulk-reading-file" type="file" accept=".xlsx,.xls" aria-describedby="bulk-reading-help"></label>
+                <p class="field-help" id="bulk-reading-help">Keep the account identifiers unchanged and enter the current meter reading. The upload date is assigned automatically. Add rows as needed; all rows are validated before saving.</p>
+              </div>
+              <div class="bulk-reading-preview" id="bulk-reading-preview" role="status" aria-live="polite"></div>
+              <div class="bulk-reading-footer"><span class="field-help">Every imported reading generates its own invoice using the current tariff.</span></div>
+              <button class="button button-primary button-full" id="import-bulk-readings" type="button" disabled>Import readings &amp; generate invoices</button>
+            </section>
+          </div>
+          <section class="panel history-panel">
+            <div class="panel-heading"><div><h2>Billing History</h2><p>Meter readings and charges</p></div><span class="tariff-chip" id="tariff-summary">Tariff: GMD 0 / unit</span></div>
+            <div class="history-filters" aria-label="Filter billing history">
+              <label>From date<input id="billing-date-from" type="date" aria-label="Billing history from date"></label>
+              <label>To date<input id="billing-date-to" type="date" aria-label="Billing history to date"></label>
+              <label>Household / meter<select id="billing-customer-filter"><option value="">All households / meters</option></select></label>
+              <button class="button button-secondary" type="button" data-clear-history-filters="billing">Clear all filters</button>
+            </div>
+            <div class="table-wrap"><table><thead><tr><th>Date</th><th>Household / Meter</th><th>Charge</th><th>Usage</th><th>Invoice</th><th>Amount</th></tr></thead><tbody id="billing-table"></tbody></table></div>
+            <p class="empty-state" id="billing-empty">Meter readings and charges will appear here.</p>
+            <nav class="pagination" id="billing-pagination" aria-label="Billing history pages"></nav>
+          </section>
+        </section>
+
+        <section class="view" id="view-payments">
+          <div class="page-heading"><div><p class="eyebrow">WATER ACCOUNTING</p><h1>Payments</h1><p class="subheading">Record payments against invoices and review payment history.</p></div></div>
+          <form class="panel action-panel payment-entry-panel" id="payment-form">
+            <div class="panel-heading"><div><h2>Record a payment</h2><p>Link each payment to an invoice. Partial payments and overpayments are allowed.</p></div><span class="form-icon amber-icon" aria-hidden="true">₵</span></div>
+            <label>Invoice<select name="invoiceId" id="invoice-select" required><option value="">Choose an invoice</option></select></label>
+            <div class="form-row"><label>Payment date<input name="date" type="date" required></label><label>Amount (GMD)<input name="amount" type="number" min="0.01" step="0.01" placeholder="0.00" required></label></div>
+            <label>Receipt number<input name="receipt" type="text" maxlength="60" placeholder="Optional"></label>
+            <label>Receipt image (optional)<input name="receiptImage" type="file" accept="image/jpeg,image/png,image/webp"><small class="field-help">JPG, PNG, or WebP; maximum 5 MB. Stored privately.</small></label>
+            <button class="button button-primary button-full" type="submit">Record payment</button>
+          </form>
+          <section class="panel history-panel">
+            <div class="panel-heading"><div><h2>Payment History</h2><p>Recorded payments and connection-fee receipts</p></div></div>
+            <div class="history-filters" aria-label="Filter payment history">
+              <label>From date<input id="payments-date-from" type="date" aria-label="Payment history from date"></label>
+              <label>To date<input id="payments-date-to" type="date" aria-label="Payment history to date"></label>
+              <label>Household / meter<select id="payments-customer-filter"><option value="">All households / meters</option></select></label>
+              <label>Invoice<select id="payments-invoice-filter"><option value="">All invoices</option></select></label>
+              <button class="button button-secondary" type="button" data-clear-history-filters="payments">Clear all filters</button>
+            </div>
+            <div class="table-wrap"><table><thead><tr><th>Date</th><th>Household / meter</th><th>Payment</th><th>Receipt details</th><th>Invoice</th><th>Amount</th></tr></thead><tbody id="payments-table"></tbody></table></div>
+            <p class="empty-state" id="payments-empty">Payments will appear here.</p>
+            <nav class="pagination" id="payments-pagination" aria-label="Payment history pages"></nav>
+          </section>
+        </section>
+
+        <section class="view" id="view-settings">
+          <div class="page-heading"><div><p class="eyebrow">WORKSPACE CONFIGURATION</p><h1>Settings</h1><p class="subheading">Configure the water tariff and VDC chairperson for this workspace.</p></div></div>
+          <div class="settings-grid">
+            <form class="panel settings-panel" id="settings-form">
+              <div class="panel-heading"><div><h2>Workspace settings</h2><p>Settings apply to all workspace users.</p></div></div>
+              <label>Charge per meter unit (GMD)<input id="tariff-input" type="number" min="0" step="0.01" required></label>
+              <p class="field-help">Enter the rate approved by the Besse Village Development Committee. Existing charges are not changed when you update the tariff.</p>
+              <label>VDC chairperson name<input id="chairperson-name-input" name="chairpersonName" type="text" maxlength="100" autocomplete="name" placeholder="Enter the current chairperson"></label>
+              <p class="field-help">This name is prefilled when approving applications and recorded with each approval.</p>
+              <button class="button button-primary" type="submit">Save settings</button>
+            </form>
+            <aside class="panel settings-note"><span class="stat-icon teal" aria-hidden="true">ⓘ</span><h2>About this workspace</h2><p>Records are stored in the configured Supabase project and shared with its authorized users. Database backups and account access are managed in Supabase.</p><p>Payment records are entered manually; this app does not process mobile money or bank transactions.</p></aside>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog class="application-dialog" id="application-dialog">
+      <form id="application-form" class="application-form">
+        <header class="dialog-header"><div><p class="eyebrow">BESSE VILLAGE DEVELOPMENT COMMITTEE</p><h2>Water meter application</h2><p>Register a new connection request.</p></div><button class="icon-button" type="button" data-close-dialog aria-label="Close application form">×</button></header>
+        <div class="dialog-content">
+          <div class="form-section">
+            <div class="section-title"><span>01</span><div><h3>Household</h3><p>Link this meter application to a household account.</p></div></div>
+            <label>Household action<select id="household-mode" name="householdMode"><option value="new">Register a new household</option><option value="existing">Add a meter to an existing household</option></select></label>
+            <label id="existing-household-picker" hidden>Choose household<select id="household-select" name="householdId" required disabled></select></label>
+            <p class="field-help" id="household-summary" hidden></p>
+          </div>
+          <fieldset id="household-fields" class="household-fields">
+            <div class="form-section">
+              <div class="section-title"><span>02</span><div><h3>Account holder</h3><p>Household contact and applicant details</p></div></div>
+              <div class="form-row three-col"><label>Surname<input name="surname" required maxlength="80" autocomplete="family-name"></label><label>First name<input name="firstName" required maxlength="80" autocomplete="given-name"></label><label>Initial(s)<input name="initials" maxlength="20"></label></div>
+              <div class="form-row three-col"><label>Date of birth<input name="dob" type="date"></label><label>Phone number<input name="phone" type="tel" required maxlength="40" autocomplete="tel"></label><label>ID / passport number<input name="idNumber" maxlength="80"></label></div>
+              <div class="form-row"><label>Alternative contact name<input name="altName" maxlength="100"></label><label>Alternative contact number<input name="altPhone" type="tel" maxlength="40"></label></div>
+            </div>
+            <div class="form-section">
+              <div class="section-title"><span>03</span><div><h3>Household property</h3><p>Shared location details for this household</p></div></div>
+              <label>Exact site address<input name="siteAddress" required maxlength="180"></label>
+              <div class="form-row"><label>Plot / land number<input name="plotNumber" maxlength="80"></label><label>Property type<select name="propertyType"><option value="New property">New property</option><option value="Existing property">Existing property</option></select></label></div>
+              <div class="form-row"><label>Location / area<input name="area" maxlength="100"></label><label>House number<input name="houseNumber" maxlength="60"></label></div>
+              <div class="form-row"><label>Street<input name="street" maxlength="100"></label><label>Supply plot number<input name="supplyPlot" maxlength="80"></label></div>
+            </div>
+          </fieldset>
+          <div class="form-section">
+            <div class="section-title"><span>04</span><div><h3>Meter connection</h3><p>Details specific to this meter application</p></div></div>
+            <div class="form-row"><label>Connection type<select name="connectionType"><option>Residential</option><option>Commercial</option><option>Industrial</option></select></label><label>Meter size requested<input name="meterSize" maxlength="60" placeholder="e.g. 15 mm"></label></div>
+            <div class="form-row"><label>Meter number <span class="muted">(office use)</span><input name="meterNumber" maxlength="60"></label><label>Initial meter reading <span class="muted">(office use)</span><input name="initialReading" type="number" min="0" step="any" value="0"></label></div>
+          </div>
+          <div class="form-section">
+            <div class="section-title"><span>05</span><div><h3>Water use</h3><p>Purpose for this meter connection</p></div></div>
+            <fieldset class="choice-field"><legend>Purpose of water use</legend><label class="check-option"><input type="checkbox" name="purpose" value="Drinking"> Drinking</label><label class="check-option"><input type="checkbox" name="purpose" value="Irrigation"> Irrigation</label><label class="check-option"><input type="checkbox" name="purpose" value="Other"> Other</label><input name="purposeOther" class="other-purpose" maxlength="80" placeholder="Describe other purpose" aria-label="Other water use"></fieldset>
+          </div>
+          <div class="form-section">
+            <div class="section-title"><span>06</span><div><h3>Required documentation</h3><p>Mark the documents received for this application</p></div></div>
+            <div class="check-list"><label class="check-option"><input type="checkbox" name="docId"> Copy of ID received</label><label class="check-option"><input type="checkbox" name="docPassport"> Copy of passport received</label><label class="check-option"><input type="checkbox" name="docOwnership"> Proof of property ownership received</label></div>
+            <p class="field-help">Identity document files are not uploaded or stored by this app.</p>
+          </div>
+          <div class="form-section">
+            <div class="section-title"><span>07</span><div><h3>Connection fee</h3><p>Record the fee and receipt reference for this meter</p></div></div>
+            <div class="form-row"><label>Amount payable (GMD)<input name="connectionFee" type="number" min="0" step="0.01" value="0"></label><label>Receipt number<input name="connectionReceipt" maxlength="60"></label></div>
+            <p class="field-help">A receipt number records the connection fee as paid when the application is approved.</p>
+          </div>
+          <div class="declaration">
+            <p class="eyebrow">CUSTOMER DECLARATION</p>
+            <p>I agree to abide by the Besse Village Development Committee's water supply terms and accept responsibility for water and related charges until my account is formally closed in accordance with Village Development Policy.</p>
+            <label class="check-option"><input name="declaration" type="checkbox" required> Applicant has read and accepted this declaration</label>
+          </div>
+        </div>
+        <footer class="dialog-footer"><p>Applicant signature and VDC approval can be completed on the printed form.</p><div><button class="button button-secondary" type="button" data-close-dialog>Cancel</button><button class="button button-primary" type="submit">Submit application</button></div></footer>
+      </form>
+    </dialog>
+    <dialog class="review-dialog" id="review-dialog" aria-labelledby="review-title">
+      <div class="review-card">
+        <header class="dialog-header"><div><p class="eyebrow">APPLICATION REVIEW</p><h2 id="review-title">Connection request</h2><p id="review-subtitle"></p></div><button class="icon-button" type="button" data-close-review aria-label="Close application details">×</button></header>
+        <div class="review-content" id="review-content"></div>
+        <footer class="dialog-footer" id="review-footer"></footer>
+      </div>
+    </dialog>
+    <dialog class="review-dialog customer-detail-dialog" id="customer-detail-dialog" aria-labelledby="customer-detail-title">
+      <div class="review-card">
+        <header class="dialog-header"><div><p class="eyebrow">CUSTOMER ACCOUNT</p><h2 id="customer-detail-title">Invoices and payments</h2><p id="customer-detail-subtitle"></p></div><button class="icon-button" type="button" data-close-customer-details aria-label="Close customer account details">×</button></header>
+        <div class="customer-detail-content" id="customer-detail-content"></div>
+        <footer class="dialog-footer"><span class="review-decision">Invoice balances include payments linked to each invoice.</span><button class="button button-secondary" type="button" data-close-customer-details>Close</button></footer>
+      </div>
+    </dialog>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
